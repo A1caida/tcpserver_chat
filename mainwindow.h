@@ -20,8 +20,8 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_starting_clicked();
-    void on_stoping_clicked();
+    void on_start_clicked();
+    void on_stop_clicked();
     void newuser();
     void slotReadClient();
     void slotDisconnected();

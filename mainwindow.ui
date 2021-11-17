@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="2" column="0" colspan="2">
-     <widget class="QPushButton" name="stoping">
+     <widget class="QPushButton" name="stop">
       <property name="styleSheet">
        <string notr="true">background-color: rgb(255, 0, 0);
 color: rgb(255, 255, 255);</string>
@@ -30,7 +30,7 @@ color: rgb(255, 255, 255);</string>
      <widget class="QTextBrowser" name="textinfo"/>
     </item>
     <item row="1" column="0" colspan="2">
-     <widget class="QPushButton" name="starting">
+     <widget class="QPushButton" name="start">
       <property name="styleSheet">
        <string notr="true">background-color: rgb(32, 172, 0);
 color: rgb(255, 255, 255);</string>

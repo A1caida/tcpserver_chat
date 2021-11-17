@@ -6,6 +6,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->stop->setEnabled(false);
 }
 
 MainWindow::~MainWindow()
@@ -13,7 +14,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_starting_clicked()
+void MainWindow::on_start_clicked()
 {
     tcpServer = new QTcpServer(this);
     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(newuser()));
@@ -26,10 +27,13 @@ void MainWindow::on_starting_clicked()
         qDebug() << "Сервер запущен. Порт 728";
         ui->textinfo->append(QString::fromUtf8("Сервер запущен. Порт 728"));
         qDebug() << QString::fromUtf8("Сервер запущен");
+
+        ui->start->setEnabled(false);
+        ui->stop->setEnabled(true);
     }
 }
 
-void MainWindow::on_stoping_clicked()
+void MainWindow::on_stop_clicked()
 {
     if(server_status==1){
         foreach(int i,clients.keys()){
@@ -43,6 +47,8 @@ void MainWindow::on_stoping_clicked()
         ui->textinfo->append(QString::fromUtf8("Сервер остановлен"));
         qDebug() << QString::fromUtf8("Сервер остановлен");
         server_status=0;
+        ui->start->setEnabled(true);
+        ui->stop->setEnabled(false);
     }
 }
 

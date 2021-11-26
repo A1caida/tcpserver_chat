@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QByteArray>
 #include <QDebug>
+#include <QtSql>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -24,12 +25,16 @@ private slots:
     void on_stop_clicked();
     void newuser();
     void slotReadClient();
-    void slotDisconnected();
 
 private:
     Ui::MainWindow *ui;
+
     QTcpServer *tcpServer;
+
     int server_status;
+
+    QSqlDatabase db;
+
     QMap<int,QTcpSocket *> clients;
     QMap<QString,QTcpSocket *> users;
     QMap<QTcpSocket *,QTcpSocket *> pm;

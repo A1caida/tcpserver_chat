@@ -7,6 +7,11 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui->stop->setEnabled(false);
+
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("db.db");
+    qDebug() << db.open();
+
 }
 
 MainWindow::~MainWindow()
@@ -36,7 +41,8 @@ void MainWindow::on_start_clicked()
 void MainWindow::on_stop_clicked()
 {
     if(server_status==1){
-        foreach(int i,clients.keys()){
+        foreach(int i,clients.keys())
+        {
             QTextStream os(clients[i]);
             os.setAutoDetectUnicode(true);
             os << QDateTime::currentDateTime().toString() << "\n";
@@ -66,7 +72,7 @@ void MainWindow::newuser()
         clients[clientSocket->socketDescriptor()]=clientSocket;
 
         connect(clients[clientSocket->socketDescriptor()],SIGNAL(readyRead()),this, SLOT(slotReadClient()));
-        connect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this, SLOT(slotDisconnected()));
+//      connect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this, SLOT(slotDisconnected()));
     }
 }
 
@@ -79,15 +85,37 @@ void MainWindow::slotReadClient()
 
     switch (ch)
     {
-    case 0:
+    case 0://log in
         {
             Data.remove(0,1);
 
-            users[Data] = clientSocket;
+            int value = 0;
+            QSqlQuery q;
+            QString log = QString(Data);
+            QString pass = QString(Data);
 
+            log.remove(log.indexOf("+"),log.size()-log.indexOf("+"));
+            pass.remove(0,pass.indexOf("+")+1);
+
+            q.exec("SELECT COUNT(*) FROM users WHERE login ='"+log+"' AND pass='"+pass+"';");
+            while (q.next())
+            {
+                 value = q.value(0).toInt();
+            }
+            if(value == 1)
+            {
+                users[log] = clientSocket;
+                QTextStream os(clientSocket);
+                os << value;
+            }
+            else
+            {
+                QTextStream os(clientSocket);
+                os << value;
+            }
             break;
         };
-    case 1:
+    case 1: //send to another user
         {
             Data.remove(0,1);
 
@@ -99,12 +127,13 @@ void MainWindow::slotReadClient()
             }
             else
             {
+                qDebug() << clientSocket->socketDescriptor();
                 QTextStream os(clientSocket);
                 os << "Пользователь не найден";
             }
             break;
         };
-    case 2:
+    case 2://find a user
         {
         Data.remove(0,1);
         QMap<QString,QTcpSocket*>::const_iterator i;
@@ -121,36 +150,43 @@ void MainWindow::slotReadClient()
                  os.setAutoDetectUnicode(true);
                  os << msg;
              }
-
+             else
+             {
+                 qDebug() << clientSocket->socketDescriptor();
+                 QTextStream os(clientSocket);
+                 os << "Пользователь не найден";
+             }
         }
             break;
         };
+        case 3://disconnect because signal doesn't wotk
+    {
+        qDebug() << clientSocket->socketDescriptor();
+
+        clients.remove(clientSocket->socketDescriptor());
+        if (users.find(users.key(clientSocket)) != users.end())
+        {
+            users.remove(users.key(clientSocket));
+        }
+        if (pm.find(clientSocket) != pm.end())
+        {
+            pm.remove(clientSocket);
+        }
+        if (pm.find(pm.key(clientSocket)) != pm.end())
+        {
+            pm.remove(pm.key(clientSocket));
+        }
+
+        qDebug() << clientSocket->socketDescriptor() << " - отключен";
+        ui->textinfo->append(QString::number(clientSocket->socketDescriptor()));
+        ui->textinfo->append("Отключен");
+        clientSocket->deleteLater();
+
+        break;
+    }
     default:
         break;
     }
 }
 
-void MainWindow::slotDisconnected()
-{
-    QTcpSocket* clientSocket = (QTcpSocket*)sender();
-
-    clients.remove(clientSocket->socketDescriptor());
-    if (users.find(users.key(clientSocket)) != users.end())
-    {
-        users.remove(users.key(clientSocket));
-    }
-    if (pm.find(clientSocket) != pm.end())
-    {
-        pm.remove(clientSocket);
-    }
-    if (pm.find(pm.key(clientSocket)) != pm.end())
-    {
-        pm.remove(pm.key(clientSocket));
-    }
-
-    qDebug() << clientSocket->socketDescriptor() << " - отключен";
-    ui->textinfo->append(QString::number(clientSocket->socketDescriptor()));
-    ui->textinfo->append("Отключен");
-    clientSocket->deleteLater();
-}
 

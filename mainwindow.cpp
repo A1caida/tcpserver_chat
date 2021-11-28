@@ -10,6 +10,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("db.db");
+    /*
+    CREATE TABLE IF NOT EXISTS "users" (
+        "id"	INTEGER NOT NULL,
+        "login"	TEXT NOT NULL UNIQUE,
+        "pass"	TEXT NOT NULL,
+        PRIMARY KEY("id" AUTOINCREMENT)
+    );
+    */
     qDebug() << db.open();
 
 }
@@ -24,11 +32,13 @@ void MainWindow::on_start_clicked()
     tcpServer = new QTcpServer(this);
     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(newuser()));
 
-    if (!tcpServer->listen(QHostAddress::Any, 728) && server_status==0) {
+    if (!tcpServer->listen(QHostAddress::Any, 728))
+    {
         qDebug() <<  tcpServer->errorString();
         ui->textinfo->append(tcpServer->errorString());
-    } else {
-        server_status=1;
+    }
+    else
+    {
         qDebug() << "Сервер запущен. Порт 728";
         ui->textinfo->append(QString::fromUtf8("Сервер запущен. Порт 728"));
         qDebug() << QString::fromUtf8("Сервер запущен");
@@ -40,40 +50,36 @@ void MainWindow::on_start_clicked()
 
 void MainWindow::on_stop_clicked()
 {
-    if(server_status==1){
-        foreach(int i,clients.keys())
-        {
-            QTextStream os(clients[i]);
-            os.setAutoDetectUnicode(true);
-            os << QDateTime::currentDateTime().toString() << "\n";
-            clients[i]->close();
-            clients.remove(i);
-        }
-        tcpServer->close();
-        ui->textinfo->append(QString::fromUtf8("Сервер остановлен"));
-        qDebug() << QString::fromUtf8("Сервер остановлен");
-        server_status=0;
-        ui->start->setEnabled(true);
-        ui->stop->setEnabled(false);
-    }
-}
 
+    foreach(int i,clients.keys())
+    {
+        QTextStream os(clients[i]);
+        os.setAutoDetectUnicode(true);
+        os << QDateTime::currentDateTime().toString() << "\n";
+        clients[i]->close();
+        clients.remove(i);
+    }
+
+    tcpServer->close();
+    ui->textinfo->append(QString::fromUtf8("Сервер остановлен"));
+    qDebug() << QString::fromUtf8("Сервер остановлен");
+
+    ui->start->setEnabled(true);
+    ui->stop->setEnabled(false);
+
+}
 
 void MainWindow::newuser()
 {
-    if(server_status==1){
+    QTcpSocket* clientSocket=tcpServer->nextPendingConnection();
 
-        QTcpSocket* clientSocket=tcpServer->nextPendingConnection();
+    qDebug() << clientSocket->socketDescriptor() << " - новое соединение";
+    ui->textinfo->append(QString::number(clientSocket->socketDescriptor())+ " Новое соединение");
 
-        qDebug() << clientSocket->socketDescriptor() << " - новое соединение";
-        ui->textinfo->append(QString::number(clientSocket->socketDescriptor()));
-        ui->textinfo->append(QString::fromUtf8("Новое соединение"));
+    clients[clientSocket->socketDescriptor()]=clientSocket;
 
-        clients[clientSocket->socketDescriptor()]=clientSocket;
-
-        connect(clients[clientSocket->socketDescriptor()],SIGNAL(readyRead()),this, SLOT(slotReadClient()));
-//      connect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this, SLOT(slotDisconnected()));
-    }
+    connect(clients[clientSocket->socketDescriptor()],SIGNAL(readyRead()),this, SLOT(slotReadClient()));
+//  сonnect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this, SLOT(slotDisconnected()));
 }
 
 void MainWindow::slotReadClient()
@@ -136,54 +142,79 @@ void MainWindow::slotReadClient()
     case 2://find a user
         {
         Data.remove(0,1);
-        QMap<QString,QTcpSocket*>::const_iterator i;
-        for(i = users.constBegin();i != users.constEnd(); i++)
-        {
-             if(i.key() == Data)
-             {
-                 QString msg = "Пользователь "+ users.key(clientSocket)+ " хочет вам написать";
 
-                 pm[clientSocket] = i.value();
-                 clientSocket = i.value();
 
-                 QTextStream os(clientSocket);
-                 os.setAutoDetectUnicode(true);
-                 os << msg;
-             }
-             else
-             {
-                 qDebug() << clientSocket->socketDescriptor();
-                 QTextStream os(clientSocket);
-                 os << "Пользователь не найден";
-             }
-        }
-            break;
-        };
-        case 3://disconnect because signal doesn't wotk
-    {
-        qDebug() << clientSocket->socketDescriptor();
+        if(users.find(Data) != users.end())
+        {
+            QString msg = "Пользователь "+ users.key(clientSocket)+ " хочет вам написать";
 
-        clients.remove(clientSocket->socketDescriptor());
-        if (users.find(users.key(clientSocket)) != users.end())
-        {
-            users.remove(users.key(clientSocket));
-        }
-        if (pm.find(clientSocket) != pm.end())
-        {
-            pm.remove(clientSocket);
-        }
-        if (pm.find(pm.key(clientSocket)) != pm.end())
-        {
-            pm.remove(pm.key(clientSocket));
-        }
+            pm[clientSocket] = users.value(Data);
+            clientSocket = users.value(Data);
 
-        qDebug() << clientSocket->socketDescriptor() << " - отключен";
-        ui->textinfo->append(QString::number(clientSocket->socketDescriptor()));
-        ui->textinfo->append("Отключен");
-        clientSocket->deleteLater();
+            QTextStream os(clientSocket);
+            os.setAutoDetectUnicode(true);
+            os << msg;
+        }
+        else
+        {
+            qDebug() << clientSocket->socketDescriptor();
+            QTextStream os(clientSocket);
+            os << "Пользователь не найден";
+        }
 
         break;
-    }
+        };
+    case 3://disconnect because signal doesn't work dunno why
+        {
+            qDebug() << clientSocket->socketDescriptor();
+
+            clients.remove(clientSocket->socketDescriptor());
+            if (users.find(users.key(clientSocket)) != users.end())
+            {
+                users.remove(users.key(clientSocket));
+            }
+            if (pm.find(clientSocket) != pm.end())
+            {
+                pm.remove(clientSocket);
+            }
+            if (pm.find(pm.key(clientSocket)) != pm.end())
+            {
+                pm.remove(pm.key(clientSocket));
+            }
+
+            qDebug() << clientSocket->socketDescriptor() << " - отключен";
+            ui->textinfo->append(QString::number(clientSocket->socketDescriptor()) + " Отключен");
+            clientSocket->deleteLater();
+
+            break;
+        };
+    case 4://registration(why 4(because i'm a genius))
+        {
+            Data.remove(0,1);
+
+            QSqlQuery q;
+            QString log = QString(Data);
+            QString pass = QString(Data);
+
+            log.remove(log.indexOf("+"),log.size()-log.indexOf("+"));
+            pass.remove(0,pass.indexOf("+")+1);
+
+            bool result = q.exec("INSERT INTO users ('login', 'pass') VALUES ('"+log+"', '"+pass+"');");
+
+            if(result == true)
+            {
+                users[log] = clientSocket;
+                QTextStream os(clientSocket);
+                os << "1";
+            }
+            else
+            {
+                QTextStream os(clientSocket);
+                os << "0";
+            }
+
+            break;
+        };
     default:
         break;
     }

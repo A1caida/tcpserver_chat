@@ -1,6 +1,19 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+
+QTextStream & operator<< (QTextStream &stream, QVector<personal_msg> a)
+{
+    stream << "2";
+    for (int i = 0; i < a.size(); i++)
+    {
+        stream << a[i].sender + "/" + a[i].time + "/" + a[i].reciever + "/" + a[i].msg + "]";
+    }
+
+    return stream;
+}
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -26,6 +39,7 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+
 
 void MainWindow::on_start_clicked()
 {
@@ -106,27 +120,44 @@ void MainWindow::slotReadClient()
             q.exec("SELECT COUNT(*) FROM users WHERE login ='"+log+"' AND pass='"+pass+"';");
             while (q.next())
             {
-                 value = q.value(0).toInt();
+                value = q.value(0).toInt();
             }
             if(value == 1)
             {
+                QByteArray data;
+                data.insert(0,"01");
+
                 users[log] = clientSocket;
+
                 QTextStream os(clientSocket);
-                os << value;
+                os << data;
             }
             else
             {
                 QTextStream os(clientSocket);
-                os << value;
+                QByteArray data;
+
+                data.insert(0,"00");
+                os << data;
             }
             break;
         };
     case 1: //send to another user
         {
-            Data.remove(0,1);
+            //Data.remove(0,1);
 
             if ( pm.find(clientSocket) != pm.end() )
             {
+                QString msg = QString(Data);
+                msg.remove(0,1);
+                QSqlQuery q;
+                q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
+                q.bindValue(":user1",users.key(clientSocket));
+                q.bindValue(":user2",users.key(pm[clientSocket]));//самое главное потом разобарться хахаха
+                q.bindValue(":msg",msg);
+                q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
+                q.exec();
+
                clientSocket = pm[clientSocket];
                QTextStream os(clientSocket);
                os << Data;
@@ -135,7 +166,7 @@ void MainWindow::slotReadClient()
             {
                 qDebug() << clientSocket->socketDescriptor();
                 QTextStream os(clientSocket);
-                os << "Пользователь не найден";
+                os << "1Пользователь не найден";
             }
             break;
         };
@@ -146,14 +177,40 @@ void MainWindow::slotReadClient()
 
         if(users.find(Data) != users.end())
         {
-            QString msg = "Пользователь "+ users.key(clientSocket)+ " хочет вам написать";
+            //QString msg = "Пользователь "+ users.key(clientSocket)+ " хочет вам написать";
 
+            QSqlQuery q;
+
+            QVector<personal_msg> a;
+            personal_msg temp;
+
+            q.prepare("SELECT login, reciever, msg, time FROM pm JOIN users ON users.id = pm.sender WHERE (sender = (SELECT id FROM users WHERE login = :user1) and reciever = (SELECT id FROM users WHERE login = :user2)) or (sender = (SELECT id FROM users WHERE login = :user2) and reciever = (SELECT id FROM users WHERE login = :user1))");
+            q.bindValue(":user1",users.key(clientSocket));
+            q.bindValue(":user2",QString(Data));
+            q.exec();
+
+            while (q.next())
+            {
+                temp.sender = q.value(0).toString();
+                temp.reciever = q.value(1).toString();
+                temp.msg = q.value(2).toString();
+                temp.time = q.value(3).toString();
+                a.push_back(temp);
+            }
+
+            QTextStream da(clientSocket);
+            da << a;
             pm[clientSocket] = users.value(Data);
             clientSocket = users.value(Data);
 
-            QTextStream os(clientSocket);
+            /*QTextStream os(clientSocket);
             os.setAutoDetectUnicode(true);
-            os << msg;
+            os << msg;*/
+
+
+            QTextStream lol(clientSocket);
+            lol << a;
+
         }
         else
         {

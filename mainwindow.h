@@ -13,12 +13,22 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+struct personal_msg
+{
+    QString sender;
+    QString reciever;
+    QString msg;
+    QString time;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+
+    friend QTextStream & operator<< (QDataStream &stream, QVector<personal_msg> a);
 
 private slots:
     void on_start_clicked();
@@ -38,6 +48,8 @@ private:
     QMap<int,QTcpSocket *> clients;
     QMap<QString,QTcpSocket *> users;
     QMap<QTcpSocket *,QTcpSocket *> pm;
+
+
 
 };
 #endif // MAINWINDOW_H

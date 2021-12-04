@@ -7,7 +7,10 @@ QTextStream & operator<< (QTextStream &stream, QVector<personal_msg> a)
     stream << "2";
     for (int i = 0; i < a.size(); i++)
     {
-        stream << a[i].sender + "/" + a[i].time + "/" + a[i].reciever + "/" + a[i].msg + "]";
+        stream << a[i].sender.size()
+        << "/" << a[i].time.size()
+        << "/" << a[i].msg.size()
+        << "/" << a[i].sender + a[i].time + a[i].msg;
     }
 
     return stream;
@@ -21,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->stop->setEnabled(false);
 
-    db = QSqlDatabase::addDatabase("QSQLITE");
+    db = QSqlDatabase::addDatabase("QSQLITE");//todo: проверка на существование и вставка скрипта при его отсутствия
     db.setDatabaseName("db.db");
     /*
     CREATE TABLE IF NOT EXISTS "users" (
@@ -144,23 +147,39 @@ void MainWindow::slotReadClient()
         };
     case 1: //send to another user
         {
-            //Data.remove(0,1);
+            Data.remove(0,1);
+            QString msg = QString(Data);
+            QSqlQuery q;
 
-            if ( pm.find(clientSocket) != pm.end() )
+            if (is_user_exist(msg.mid(0,msg.indexOf("/"))) == 1)
             {
-                QString msg = QString(Data);
-                msg.remove(0,1);
-                QSqlQuery q;
-                q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
-                q.bindValue(":user1",users.key(clientSocket));
-                q.bindValue(":user2",users.key(pm[clientSocket]));//самое главное потом разобарться хахаха
-                q.bindValue(":msg",msg);
-                q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
-                q.exec();
+                if ( pm.find(clientSocket) != pm.end() )//if both users are online
+                {
+                    msg.remove(0,msg.indexOf("/")+1);
 
-               clientSocket = pm[clientSocket];
-               QTextStream os(clientSocket);
-               os << Data;
+                    q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
+                    q.bindValue(":user1",users.key(clientSocket));
+                    q.bindValue(":user2",users.key(pm[clientSocket]));//самое главное потом разобарться хахаха
+                    q.bindValue(":msg",msg);
+                    q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
+                    q.exec();
+
+                    clientSocket = pm[clientSocket];
+                    QTextStream os(clientSocket);
+                    os << Data;
+                }
+                else//todo class for db
+                {
+                    //
+
+                    q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
+                    q.bindValue(":user1",users.key(clientSocket));
+                    q.bindValue(":user2",msg.mid(0,msg.indexOf("/")));
+                    msg.remove(0,msg.indexOf("/")+1);
+                    q.bindValue(":msg",msg);
+                    q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
+                    q.exec();
+                }
             }
             else
             {
@@ -174,49 +193,39 @@ void MainWindow::slotReadClient()
         {
         Data.remove(0,1);
 
+        QSqlQuery query;
 
-        if(users.find(Data) != users.end())
+        if(is_user_exist(QString(Data)) == 1)
         {
-            //QString msg = "Пользователь "+ users.key(clientSocket)+ " хочет вам написать";
-
-            QSqlQuery q;
-
             QVector<personal_msg> a;
             personal_msg temp;
 
-            q.prepare("SELECT login, reciever, msg, time FROM pm JOIN users ON users.id = pm.sender WHERE (sender = (SELECT id FROM users WHERE login = :user1) and reciever = (SELECT id FROM users WHERE login = :user2)) or (sender = (SELECT id FROM users WHERE login = :user2) and reciever = (SELECT id FROM users WHERE login = :user1))");
-            q.bindValue(":user1",users.key(clientSocket));
-            q.bindValue(":user2",QString(Data));
-            q.exec();
+            query.prepare("SELECT login, msg, time FROM pm JOIN users ON users.id = pm.sender WHERE (sender = (SELECT id FROM users WHERE login = :user1) and reciever = (SELECT id FROM users WHERE login = :user2)) or (sender = (SELECT id FROM users WHERE login = :user2) and reciever = (SELECT id FROM users WHERE login = :user1)) ORDER BY pm.id DESC LIMIT 50");//страшна вырубай
+            query.bindValue(":user1",users.key(clientSocket));
+            query.bindValue(":user2",QString(Data));
+            query.exec();
 
-            while (q.next())
+            while (query.next())
             {
-                temp.sender = q.value(0).toString();
-                temp.reciever = q.value(1).toString();
-                temp.msg = q.value(2).toString();
-                temp.time = q.value(3).toString();
+                temp.sender = query.value(0).toString();
+                temp.msg = query.value(1).toString();
+                temp.time = query.value(2).toString();
                 a.push_back(temp);
             }
 
-            QTextStream da(clientSocket);
-            da << a;
-            pm[clientSocket] = users.value(Data);
-            clientSocket = users.value(Data);
+            QTextStream os(clientSocket);
+            os << a;
 
-            /*QTextStream os(clientSocket);
-            os.setAutoDetectUnicode(true);
-            os << msg;*/
-
-
-            QTextStream lol(clientSocket);
-            lol << a;
+            if(users.find(QString(Data)) != users.end()) // user online or nah
+            {
+                pm[clientSocket] = users.value(Data);
+            }
 
         }
         else
         {
-            qDebug() << clientSocket->socketDescriptor();
             QTextStream os(clientSocket);
-            os << "Пользователь не найден";
+            os << "1Пользователь не найден";
         }
 
         break;
@@ -275,6 +284,21 @@ void MainWindow::slotReadClient()
     default:
         break;
     }
+}
+
+int MainWindow::is_user_exist(QString Data)
+{
+    QSqlQuery query;
+    int existance = 0;
+
+    query.prepare("SELECT COUNT(*) FROM users WHERE login = :user");
+    query.bindValue(":user",Data);
+    query.exec();
+    while (query.next())
+    {
+        existance = query.value(0).toInt();
+    }
+    return existance;
 }
 
 

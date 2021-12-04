@@ -16,7 +16,6 @@ QT_END_NAMESPACE
 struct personal_msg
 {
     QString sender;
-    QString reciever;
     QString msg;
     QString time;
 };
@@ -48,6 +47,7 @@ private:
     QMap<int,QTcpSocket *> clients;
     QMap<QString,QTcpSocket *> users;
     QMap<QTcpSocket *,QTcpSocket *> pm;
+    int is_user_exist(QString Data);
 
 
 

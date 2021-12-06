@@ -16,7 +16,6 @@ QTextStream & operator<< (QTextStream &stream, QVector<personal_msg> a)
     return stream;
 }
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -25,15 +24,38 @@ MainWindow::MainWindow(QWidget *parent)
     ui->stop->setEnabled(false);
 
     db = QSqlDatabase::addDatabase("QSQLITE");//todo: проверка на существование и вставка скрипта при его отсутствия
-    db.setDatabaseName("db.db");
-    /*
-    CREATE TABLE IF NOT EXISTS "users" (
-        "id"	INTEGER NOT NULL,
-        "login"	TEXT NOT NULL UNIQUE,
-        "pass"	TEXT NOT NULL,
-        PRIMARY KEY("id" AUTOINCREMENT)
-    );
-    */
+    if(!QFile::exists("db.db"))
+    {
+        db.setDatabaseName("db.db");
+        db.open();
+
+        QSqlQuery q;
+
+        q.exec("CREATE DATABASE IF NOT EXISTS db;");
+        q.exec("CREATE TABLE IF NOT EXISTS pm ("
+                   "id	INTEGER NOT NULL,"
+                   "sender	INTEGER NOT NULL,"
+                   "reciever	INTEGER NOT NULL,"
+                   "msg	TEXT NOT NULL,"
+                   "time	TEXT,"
+                   "CONSTRAINT FK__users_2 FOREIGN KEY(reciever) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE NO ACTION,"
+                   "CONSTRAINT FK__users FOREIGN KEY(sender) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE NO ACTION,"
+                   "PRIMARY KEY(id AUTOINCREMENT)"
+                   ");");
+        q.exec("CREATE TABLE IF NOT EXISTS users ("
+                   "id INTEGER NOT NULL,"
+                   "login TEXT NOT NULL UNIQUE,"
+                   "pass	TEXT NOT NULL,"
+                   "PRIMARY KEY(id AUTOINCREMENT)"
+                   ");");
+    }
+    else
+    {
+        db.setDatabaseName("db.db");
+        db.open();
+    }
+
+
     qDebug() << db.open();
 
 }
@@ -42,7 +64,6 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-
 
 void MainWindow::on_start_clicked()
 {
@@ -128,9 +149,16 @@ void MainWindow::slotReadClient()
             if(value == 1)
             {
                 QByteArray data;
-                data.insert(0,"01");
 
-                users[log] = clientSocket;
+                if(users.find(QString(log)) != users.end()) // user online or nah
+                {
+                    data.insert(0,"02");
+                }
+                else
+                {
+                    users[log] = clientSocket;
+                    data.insert(0,"01");
+                }
 
                 QTextStream os(clientSocket);
                 os << data;
@@ -155,23 +183,35 @@ void MainWindow::slotReadClient()
             {
                 if ( pm.find(clientSocket) != pm.end() )//if both users are online
                 {
+                    QString nick = msg.mid(0,msg.indexOf("/"));
                     msg.remove(0,msg.indexOf("/")+1);
 
                     q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
-                    q.bindValue(":user1",users.key(clientSocket));
-                    q.bindValue(":user2",users.key(pm[clientSocket]));//самое главное потом разобарться хахаха
+                    q.bindValue(":user1",users.key(clientSocket));//ник отправителя
+                    q.bindValue(":user2",users.key(pm[clientSocket]));//ник получателя
                     q.bindValue(":msg",msg);
                     q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
                     q.exec();
 
-                    clientSocket = pm[clientSocket];
-                    QTextStream os(clientSocket);
-                    os << Data;
-                }
-                else//todo class for db
-                {
-                    //
+                    if(pm.find(pm[clientSocket]) != pm.end())//разговаривает ли получатель с отправителем в данный момент//fix this
+                    {
+                        clientSocket = pm[clientSocket];
+                        QTextStream os(clientSocket);
+                        msg.insert(0,"1");
+                        os << msg;
+                    }
+                    else
+                    {
+                        QTextStream os(users[nick]);
+                        nick = users.key(clientSocket);
+                        nick.insert(0,"3");
+                        os << nick;
+                    }
 
+
+                }
+                else//todo class for db(nah to lazy)
+                {
                     q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
                     q.bindValue(":user1",users.key(clientSocket));
                     q.bindValue(":user2",msg.mid(0,msg.indexOf("/")));
@@ -200,25 +240,32 @@ void MainWindow::slotReadClient()
             QVector<personal_msg> a;
             personal_msg temp;
 
-            query.prepare("SELECT login, msg, time FROM pm JOIN users ON users.id = pm.sender WHERE (sender = (SELECT id FROM users WHERE login = :user1) and reciever = (SELECT id FROM users WHERE login = :user2)) or (sender = (SELECT id FROM users WHERE login = :user2) and reciever = (SELECT id FROM users WHERE login = :user1)) ORDER BY pm.id DESC LIMIT 50");//страшна вырубай
+            query.prepare("SELECT t.* FROM (SELECT pm.id, login, msg, time FROM pm JOIN users ON users.id = pm.sender WHERE (sender = (SELECT id FROM users WHERE login = :user1) and reciever = (SELECT id FROM users WHERE login = :user2)) or (sender = (SELECT id FROM users WHERE login = :user2) and reciever = (SELECT id FROM users WHERE login = :user1))ORDER BY pm.id DESC LIMIT 50) AS t ORDER BY t.id asc ");//страшна вырубай
             query.bindValue(":user1",users.key(clientSocket));
             query.bindValue(":user2",QString(Data));
             query.exec();
 
             while (query.next())
             {
-                temp.sender = query.value(0).toString();
-                temp.msg = query.value(1).toString();
-                temp.time = query.value(2).toString();
+                temp.sender = query.value(1).toString();
+                temp.msg = query.value(2).toString();
+                temp.time = query.value(3).toString();
                 a.push_back(temp);
             }
 
             QTextStream os(clientSocket);
             os << a;
 
-            if(users.find(QString(Data)) != users.end()) // user online or nah
+            if(users.find(QString(Data)) != users.end()) // user online or nah//fix this
             {
                 pm[clientSocket] = users.value(Data);
+            }
+            else
+            {
+                if (pm.find(pm.key(clientSocket)) != pm.end())
+                {
+                    pm.remove(pm.key(clientSocket));
+                }
             }
 
         }
@@ -271,12 +318,12 @@ void MainWindow::slotReadClient()
             {
                 users[log] = clientSocket;
                 QTextStream os(clientSocket);
-                os << "1";
+                os << "01";
             }
             else
             {
                 QTextStream os(clientSocket);
-                os << "0";
+                os << "02";
             }
 
             break;

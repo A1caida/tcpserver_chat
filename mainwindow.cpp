@@ -178,47 +178,29 @@ void MainWindow::slotReadClient()
             Data.remove(0,1);
             QString msg = QString(Data);
             QSqlQuery q;
+            QString reciever = msg.mid(0,msg.indexOf("/"));
+            QString sender = users.key(clientSocket);
 
             if (is_user_exist(msg.mid(0,msg.indexOf("/"))) == 1)
             {
-                if ( pm.find(clientSocket) != pm.end() )//if both users are online
+                msg.remove(0,msg.indexOf("/")+1);
+
+                q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
+                q.bindValue(":user1",sender);//ник отправителя
+                q.bindValue(":user2",reciever);//ник получателя
+                q.bindValue(":msg",msg);
+                q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
+                q.exec();
+
+                if(users.find(reciever) != users.end())
                 {
-                    QString nick = msg.mid(0,msg.indexOf("/"));
-                    msg.remove(0,msg.indexOf("/")+1);
-
-                    q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
-                    q.bindValue(":user1",users.key(clientSocket));//ник отправителя
-                    q.bindValue(":user2",users.key(pm[clientSocket]));//ник получателя
-                    q.bindValue(":msg",msg);
-                    q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
-                    q.exec();
-
-                    if(pm.find(pm[clientSocket]) != pm.end())//разговаривает ли получатель с отправителем в данный момент//fix this
-                    {
-                        clientSocket = pm[clientSocket];
-                        QTextStream os(clientSocket);
-                        msg.insert(0,"1");
-                        os << msg;
-                    }
-                    else
-                    {
-                        QTextStream os(users[nick]);
-                        nick = users.key(clientSocket);
-                        nick.insert(0,"3");
-                        os << nick;
-                    }
-
-
-                }
-                else//todo class for db(nah to lazy)
-                {
-                    q.prepare("INSERT INTO pm (sender, reciever, msg, TIME) VALUES ((SELECT id FROM users WHERE login = :user1),(SELECT id FROM users WHERE login = :user2),:msg, :time)");
-                    q.bindValue(":user1",users.key(clientSocket));
-                    q.bindValue(":user2",msg.mid(0,msg.indexOf("/")));
-                    msg.remove(0,msg.indexOf("/")+1);
-                    q.bindValue(":msg",msg);
-                    q.bindValue(":time",QDateTime::currentDateTimeUtc().toString());
-                    q.exec();
+                    clientSocket = users[reciever];
+                    QTextStream os(clientSocket);
+                    QString all = QString::number(sender.size());
+                    all.push_back(sender);
+                    all.insert(0,"1/");
+                    all.push_back(msg);
+                    os << all;
                 }
             }
             else
@@ -255,19 +237,6 @@ void MainWindow::slotReadClient()
 
             QTextStream os(clientSocket);
             os << a;
-
-            if(users.find(QString(Data)) != users.end()) // user online or nah//fix this
-            {
-                pm[clientSocket] = users.value(Data);
-            }
-            else
-            {
-                if (pm.find(pm.key(clientSocket)) != pm.end())
-                {
-                    pm.remove(pm.key(clientSocket));
-                }
-            }
-
         }
         else
         {
@@ -285,14 +254,6 @@ void MainWindow::slotReadClient()
             if (users.find(users.key(clientSocket)) != users.end())
             {
                 users.remove(users.key(clientSocket));
-            }
-            if (pm.find(clientSocket) != pm.end())
-            {
-                pm.remove(clientSocket);
-            }
-            if (pm.find(pm.key(clientSocket)) != pm.end())
-            {
-                pm.remove(pm.key(clientSocket));
             }
 
             qDebug() << clientSocket->socketDescriptor() << " - отключен";

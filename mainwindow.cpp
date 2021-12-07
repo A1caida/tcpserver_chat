@@ -207,7 +207,7 @@ void MainWindow::slotReadClient()
             {
                 qDebug() << clientSocket->socketDescriptor();
                 QTextStream os(clientSocket);
-                os << "1Пользователь не найден";
+                os << "1ППользователь не найден";//фича
             }
             break;
         };

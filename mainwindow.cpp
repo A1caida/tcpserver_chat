@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-
 QTextStream & operator<< (QTextStream &stream, QVector<personal_msg> a)
 {
     stream << "2";
@@ -23,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     ui->stop->setEnabled(false);
 
-    db = QSqlDatabase::addDatabase("QSQLITE");//todo: проверка на существование и вставка скрипта при его отсутствия
+    db = QSqlDatabase::addDatabase("QSQLITE");
     if(!QFile::exists("db.db"))
     {
         db.setDatabaseName("db.db");
@@ -54,7 +53,6 @@ MainWindow::MainWindow(QWidget *parent)
         db.setDatabaseName("db.db");
         db.open();
     }
-
 
     qDebug() << db.open();
 
@@ -117,7 +115,8 @@ void MainWindow::newuser()
     clients[clientSocket->socketDescriptor()]=clientSocket;
 
     connect(clients[clientSocket->socketDescriptor()],SIGNAL(readyRead()),this, SLOT(slotReadClient()));
-//  сonnect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this, SLOT(slotDisconnected()));
+
+    connect(clients[clientSocket->socketDescriptor()],SIGNAL(disconnected()),this,SLOT(slotDisconnected()));
 }
 
 void MainWindow::slotReadClient()
@@ -207,7 +206,7 @@ void MainWindow::slotReadClient()
             {
                 qDebug() << clientSocket->socketDescriptor();
                 QTextStream os(clientSocket);
-                os << "1ППользователь не найден";//фича
+                os << "1Пользователь не найден";
             }
             break;
         };
@@ -241,14 +240,14 @@ void MainWindow::slotReadClient()
         else
         {
             QTextStream os(clientSocket);
-            os << "1Пользователь не найден";
+            os << "5Пользователь не найден";
         }
 
         break;
         };
     case 3://disconnect because signal doesn't work dunno why
         {
-            qDebug() << clientSocket->socketDescriptor();
+            /*qDebug() << clientSocket->socketDescriptor();
 
             clients.remove(clientSocket->socketDescriptor());
             if (users.find(users.key(clientSocket)) != users.end())
@@ -258,7 +257,7 @@ void MainWindow::slotReadClient()
 
             qDebug() << clientSocket->socketDescriptor() << " - отключен";
             ui->textinfo->append(QString::number(clientSocket->socketDescriptor()) + " Отключен");
-            clientSocket->deleteLater();
+            clientSocket->deleteLater();*/
 
             break;
         };
@@ -292,6 +291,19 @@ void MainWindow::slotReadClient()
     default:
         break;
     }
+}
+
+void MainWindow::slotDisconnected()
+{
+    QTcpSocket* clientSocket = (QTcpSocket*)sender();
+    ui->textinfo->append("Отключен");
+
+    clients.remove(clients.key(clientSocket));
+    if (users.find(users.key(clientSocket)) != users.end())
+    {
+        users.remove(users.key(clientSocket));
+    }
+    clientSocket->deleteLater();
 }
 
 int MainWindow::is_user_exist(QString Data)

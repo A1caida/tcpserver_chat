@@ -34,6 +34,7 @@ private slots:
     void on_stop_clicked();
     void newuser();
     void slotReadClient();
+    void slotDisconnected();
 
 private:
     Ui::MainWindow *ui;
@@ -44,8 +45,6 @@ private:
     QMap<QString,QTcpSocket *> users;
 
     int is_user_exist(QString Data);
-
-
 
 };
 #endif // MAINWINDOW_H

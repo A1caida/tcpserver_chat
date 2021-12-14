@@ -68,15 +68,15 @@ void MainWindow::on_start_clicked()
     tcpServer = new QTcpServer(this);
     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(newuser()));
 
-    if (!tcpServer->listen(QHostAddress::Any, 728))
+    if (!tcpServer->listen(QHostAddress::Any, 7272))//wysi number
     {
         qDebug() <<  tcpServer->errorString();
         ui->textinfo->append(tcpServer->errorString());
     }
     else
     {
-        qDebug() << "Сервер запущен. Порт 728";
-        ui->textinfo->append(QString::fromUtf8("Сервер запущен. Порт 728"));
+        qDebug() << "Сервер запущен. Порт 7272";
+        ui->textinfo->append(QString::fromUtf8("Сервер запущен. Порт 7272"));
         qDebug() << QString::fromUtf8("Сервер запущен");
 
         ui->start->setEnabled(false);

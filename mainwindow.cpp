@@ -280,6 +280,8 @@ void MainWindow::slotReadClient()
                 users[log] = clientSocket;
                 QTextStream os(clientSocket);
                 os << "01";
+
+                ui->listWidget->addItem(log);
             }
             else
             {

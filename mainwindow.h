@@ -8,6 +8,7 @@
 #include <QByteArray>
 #include <QDebug>
 #include <QtSql>
+#include <QListWidgetItem>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -35,6 +36,8 @@ private slots:
     void newuser();
     void slotReadClient();
     void slotDisconnected();
+
+    void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
 private:
     Ui::MainWindow *ui;

@@ -68,6 +68,7 @@ void MainWindow::on_start_clicked()
     tcpServer = new QTcpServer(this);
     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(newuser()));
 
+
     if (!tcpServer->listen(QHostAddress::Any, 7272))//wysi number
     {
         qDebug() <<  tcpServer->errorString();
@@ -157,6 +158,8 @@ void MainWindow::slotReadClient()
                 {
                     users[log] = clientSocket;
                     data.insert(0,"01");
+
+                    ui->listWidget->addItem(log);
                 }
 
                 QTextStream os(clientSocket);
@@ -248,13 +251,11 @@ void MainWindow::slotReadClient()
     case 3://disconnect because signal doesn't work dunno why
         {
             /*qDebug() << clientSocket->socketDescriptor();
-
             clients.remove(clientSocket->socketDescriptor());
             if (users.find(users.key(clientSocket)) != users.end())
             {
                 users.remove(users.key(clientSocket));
             }
-
             qDebug() << clientSocket->socketDescriptor() << " - отключен";
             ui->textinfo->append(QString::number(clientSocket->socketDescriptor()) + " Отключен");
             clientSocket->deleteLater();*/
@@ -298,11 +299,18 @@ void MainWindow::slotDisconnected()
     QTcpSocket* clientSocket = (QTcpSocket*)sender();
     ui->textinfo->append("Отключен");
 
+    for (int i = 0; i < ui->listWidget->count(); i++)
+    {
+        if (ui->listWidget->item(i)->data(Qt::DisplayRole).toString() == users.key(clientSocket))
+            delete ui->listWidget->item(i);
+    }
+
     clients.remove(clients.key(clientSocket));
     if (users.find(users.key(clientSocket)) != users.end())
     {
         users.remove(users.key(clientSocket));
     }
+
     clientSocket->deleteLater();
 }
 
@@ -321,4 +329,17 @@ int MainWindow::is_user_exist(QString Data)
     return existance;
 }
 
+void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
+{
+    QTcpSocket* clientSocket = users[item->text().toUtf8()];
+    ui->textinfo->append(item->text().toUtf8()+" Отключен");
+
+    clients.remove(clients.key(clientSocket));
+    if (users.find(users.key(clientSocket)) != users.end())
+    {
+        users.remove(users.key(clientSocket));
+    }
+    clientSocket->deleteLater();
+    delete item;
+}
 

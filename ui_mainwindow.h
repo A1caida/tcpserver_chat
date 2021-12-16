@@ -12,6 +12,7 @@
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QGridLayout>
+#include <QtWidgets/QListWidget>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QTextBrowser>
@@ -27,12 +28,13 @@ public:
     QPushButton *stop;
     QTextBrowser *textinfo;
     QPushButton *start;
+    QListWidget *listWidget;
 
     void setupUi(QMainWindow *MainWindow)
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName(QString::fromUtf8("MainWindow"));
-        MainWindow->resize(377, 319);
+        MainWindow->resize(635, 319);
         centralWidget = new QWidget(MainWindow);
         centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         gridLayout = new QGridLayout(centralWidget);
@@ -44,19 +46,24 @@ public:
         stop->setStyleSheet(QString::fromUtf8("background-color: rgb(255, 0, 0);\n"
 "color: rgb(255, 255, 255);"));
 
-        gridLayout->addWidget(stop, 2, 0, 1, 2);
+        gridLayout->addWidget(stop, 2, 0, 1, 1);
 
         textinfo = new QTextBrowser(centralWidget);
         textinfo->setObjectName(QString::fromUtf8("textinfo"));
 
-        gridLayout->addWidget(textinfo, 0, 0, 1, 2);
+        gridLayout->addWidget(textinfo, 0, 0, 1, 1);
 
         start = new QPushButton(centralWidget);
         start->setObjectName(QString::fromUtf8("start"));
         start->setStyleSheet(QString::fromUtf8("background-color: rgb(32, 172, 0);\n"
 "color: rgb(255, 255, 255);"));
 
-        gridLayout->addWidget(start, 1, 0, 1, 2);
+        gridLayout->addWidget(start, 1, 0, 1, 1);
+
+        listWidget = new QListWidget(centralWidget);
+        listWidget->setObjectName(QString::fromUtf8("listWidget"));
+
+        gridLayout->addWidget(listWidget, 0, 1, 3, 1);
 
         MainWindow->setCentralWidget(centralWidget);
 

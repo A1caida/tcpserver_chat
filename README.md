@@ -1,7 +1,5 @@
 # TCPserver chat
 
-## Для работы необходимо скачать сурсы Qt 6.2
-
 > Stack
 
 ![Qt](https://img.shields.io/badge/Qt-%23217346.svg?style=for-the-badge&logo=Qt&logoColor=white)
@@ -10,6 +8,10 @@
 >Utilites
 
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+
+### Компиляяция
+
+> Компилирование происходит в Qt Creator или же через gcc. Для работы необходимо скачать исходный код Qt 6.2
 
 ### Запуск приложения в докере
 

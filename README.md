@@ -1,5 +1,7 @@
 # TCPserver chat
 
+work in progress
+
 <img src="https://c.tenor.com/izUQQggwK44AAAAC/makise-kurisu.gif" align="right" />
 
 ![Qt](https://img.shields.io/badge/Qt-%23217346.svg?style=for-the-badge&logo=Qt&logoColor=white)
